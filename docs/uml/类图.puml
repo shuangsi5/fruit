@@ -1,0 +1,239 @@
+@startuml
+' 图名：系统核心类图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "表现层 Controller" {
+  class AuthController {
+    +register(dto) : Result
+    +login(dto) : Result
+    +me() : Result
+  }
+  class ProductController {
+    +list(query) : Result
+    +detail(id) : Result
+  }
+  class OrderController {
+    +create(dto) : Result
+    +pay(id, dto) : Result
+    +cancel(id) : Result
+  }
+  class MerchantController {
+    +onShelf(dto) : Result
+    +updateStock(id, dto) : Result
+    +warnings() : Result
+  }
+  class AdminController {
+    +auditMerchant(id, dto) : Result
+    +overview() : Result
+  }
+}
+
+package "服务层 Service" {
+  interface IUserService {
+    +login(username, password) : UserPrincipal
+  }
+  interface IProductService {
+    +getById(id) : Product
+    +onShelf(dto) : Product
+  }
+  interface IInventoryService {
+    +lockStock(productId, qty) : void
+    +releaseStock(productId, qty) : void
+    +adjustStock(dto) : void
+  }
+  interface IOrderService {
+    +createOrder(dto) : Order
+    +pay(id, method) : PaymentRecord
+    +ship(id, dto) : void
+  }
+  interface IAuditService {
+    +auditMerchant(id, dto) : void
+    +handleAfterSale(id, dto) : void
+  }
+  interface IRecommendService {
+    +recommend(userId, scene, limit) : List
+  }
+  class OrderServiceImpl
+  class InventoryServiceImpl
+  class RecommendationServiceImpl
+}
+
+package "引擎 Engine（领域层）" {
+  interface RecommendationEngine {
+    +recommend(userId, scene, limit) : List
+  }
+  class HybridRecommendationEngine {
+    -freqWeight : double
+    -cfWeight : double
+    -hotWeight : double
+    +recommend(userId, scene, limit) : List
+  }
+  interface WarningEngine {
+    +evaluate(product, inventory, q7) : WarningResult
+  }
+  class RuleBasedWarningEngine {
+    +evaluate(product, inventory, q7) : WarningResult
+  }
+}
+
+package "领域实体 Entity" {
+  class User {
+    -id : Long
+    -username : String
+    -password : String
+    -role : String
+    -merchantId : Long
+    -status : Integer
+  }
+  class Merchant {
+    -id : Long
+    -userId : Long
+    -merchantName : String
+    -auditStatus : Integer
+  }
+  class Category {
+    -id : Long
+    -name : String
+    -parentId : Long
+  }
+  class Product {
+    -id : Long
+    -merchantId : Long
+    -categoryId : Long
+    -price : BigDecimal
+    -shelfLifeDays : Integer
+    -productionDate : LocalDate
+    -status : Integer
+  }
+  class Inventory {
+    -productId : Long
+    -stock : Integer
+    -lockedStock : Integer
+    -safetyStock : Integer
+    -warningLevel : Integer
+  }
+  class Cart {
+    -userId : Long
+    -productId : Long
+    -quantity : Integer
+  }
+  class Address {
+    -userId : Long
+    -receiver : String
+    -detail : String
+  }
+  class Order {
+    -id : Long
+    -orderNo : String
+    -payAmount : BigDecimal
+    -status : Integer
+  }
+  class OrderItem {
+    -orderId : Long
+    -productId : Long
+    -quantity : Integer
+  }
+  class PaymentRecord {
+    -orderId : Long
+    -amount : BigDecimal
+    -status : Integer
+  }
+  class Logistics {
+    -orderId : Long
+    -logisticsNo : String
+    -status : Integer
+  }
+  class AfterSale {
+    -orderId : Long
+    -type : Integer
+    -status : Integer
+  }
+  class Complaint {
+    -userId : Long
+    -merchantId : Long
+    -status : Integer
+  }
+  class AuditRecord {
+    -bizType : String
+    -bizId : Long
+    -action : String
+  }
+  class InventoryLog {
+    -productId : Long
+    -changeType : Integer
+    -quantity : Integer
+  }
+  class RecommendationLog {
+    -userId : Long
+    -productId : Long
+    -score : BigDecimal
+  }
+}
+
+' ===== 实现关系 =====
+IUserService <|.. OrderServiceImpl
+IOrderService <|.. OrderServiceImpl
+IInventoryService <|.. InventoryServiceImpl
+IRecommendService <|.. RecommendationServiceImpl
+RecommendationEngine <|.. HybridRecommendationEngine
+WarningEngine <|.. RuleBasedWarningEngine
+
+' ===== 控制层依赖服务层 =====
+AuthController --> IUserService
+OrderController --> IOrderService
+ProductController --> IProductService
+MerchantController --> IInventoryService
+MerchantController --> IProductService
+AdminController --> IAuditService
+AdminController --> IRecommendService
+
+' ===== 服务层依赖引擎与实体 =====
+OrderServiceImpl --> IInventoryService
+OrderServiceImpl --> Order
+OrderServiceImpl --> OrderItem
+OrderServiceImpl --> PaymentRecord
+InventoryServiceImpl --> Inventory
+InventoryServiceImpl --> InventoryLog
+RecommendationServiceImpl --> RecommendationEngine
+RecommendationServiceImpl --> RecommendationLog
+RecommendationServiceImpl --> Product
+RuleBasedWarningEngine --> Inventory
+RuleBasedWarningEngine --> Product
+
+' ===== 实体关联（基数）=====
+User "1" -- "0..1" Merchant : 拥有
+User "1" -- "0..*" Address : 拥有
+User "1" -- "0..*" Cart : 拥有
+User "1" -- "0..*" Order : 下单
+User "1" -- "0..*" Complaint : 发起
+Merchant "1" -- "0..*" Product : 上架
+Category "1" -- "0..*" Product : 归类
+Product "1" -- "1" Inventory : 对应库存
+Product "1" -- "0..*" Cart : 被加入
+Cart "0..*" -- "1" Product : 指向
+Order "1" -- "1..*" OrderItem : 包含
+Order "1" -- "0..1" PaymentRecord : 支付
+Order "1" -- "0..1" Logistics : 配送
+Order "1" -- "0..*" AfterSale : 售后
+OrderItem "0..*" -- "0..1" AfterSale : 针对
+Product "1" -- "0..*" InventoryLog : 库存变动
+User "1" -- "0..*" RecommendationLog : 推荐历史
+Merchant "0..*" -- "0..*" Complaint : 被投诉
+
+note right of HybridRecommendationEngine
+  混合推荐算法：
+  购买频次 + 协同过滤 + 热销兜底
+end note
+
+note right of RuleBasedWarningEngine
+  规则预警算法：
+  临期等级 + 损耗风险 + 库存不足
+  取最大值作为综合等级
+end note
+
+@enduml

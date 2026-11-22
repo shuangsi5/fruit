@@ -1,0 +1,77 @@
+@startuml
+' 图名：系统架构图（分层组件）
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "表现层 Presentation（Vue 3 + Vite + Pinia + ECharts）" {
+  component "用户端\n浏览/购物车/下单/售后/推荐" as UI_USER
+  component "商家端\n上下架/库存/发货/报表/预警" as UI_MER
+  component "平台管理端\n审核/用户/投诉/总览" as UI_ADM
+}
+
+package "网关与鉴权层 Gateway & Security" {
+  component "Nginx\n反向代理/静态资源/CORS" as NGINX
+  component "Spring Security Filter Chain\nJWT校验/RBAC/幂等" as SEC
+}
+
+package "业务层 Application" {
+  component "Controller\n参数校验/DTO装配" as CTRL
+  component "Application Service\n事务编排/用例编排" as APP
+}
+
+package "领域层 Domain" {
+  component "订单域" as DOM_ORDER
+  component "商品与库存域" as DOM_PROD
+  component "售后与投诉域" as DOM_AFTER
+  component "推荐引擎\n频次+协同过滤+热销兜底" as RECO
+  component "预警引擎\n临期/损耗/库存不足" as WARN
+}
+
+package "数据层 Data Access" {
+  component "MyBatis-Plus Mapper\n分页/逻辑删除/SQL" as MP
+}
+
+package "基础设施层 Infrastructure" {
+  database "MySQL 8\n业务主库" as DB
+  database "Redis\n缓存/热销榜/会话" as CACHE
+  component "定时任务\n@Scheduled 预警扫描/超时关单" as JOB
+  component "日志与监控\nSLF4J + Actuator" as LOG
+}
+
+UI_USER --> NGINX
+UI_MER --> NGINX
+UI_ADM --> NGINX
+NGINX --> SEC : 统一入口
+SEC --> CTRL : 注入安全上下文
+CTRL --> APP
+APP --> DOM_ORDER
+APP --> DOM_PROD
+APP --> DOM_AFTER
+APP --> RECO
+APP --> WARN
+DOM_ORDER --> MP
+DOM_PROD --> MP
+DOM_AFTER --> MP
+RECO --> MP
+WARN --> MP
+MP --> DB
+MP --> CACHE
+JOB --> DB : 定时写入预警
+WARN ..> JOB : 定时触发
+APP ..> LOG : 记录业务日志
+
+note right of RECO
+  冷启动用户返回热销榜兜底
+  结果缓存30分钟
+end note
+
+note right of WARN
+  每日02:00扫描
+  等级取临期/损耗/库存最大值
+end note
+
+@enduml

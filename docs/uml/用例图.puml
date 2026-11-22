@@ -1,0 +1,128 @@
+@startuml
+' 图名：水果交易智能管理系统 - 系统用例图
+' 撰写成员：需求分析智能体
+' 版本：v1.0
+' 说明：对应《需求规格说明书》第 3 章功能性需求与第 5 章智能特性需求
+
+title 水果交易智能管理系统 - 系统用例图
+
+left to right direction
+
+actor "用户" as ActorUser
+actor "商家" as ActorMerchant
+actor "平台管理员" as ActorAdmin
+
+package "公共" {
+  (登录与身份鉴权) as UC_PUB_01
+  (校验并预占库存) as UC_PUB_02
+  (执行模拟支付) as UC_PUB_03
+  (上传凭证图片) as UC_PUB_04
+}
+
+package "用户端" {
+  (注册账号) as UC_USR_01
+  (浏览水果分类) as UC_USR_02
+  (搜索与筛选商品) as UC_USR_03
+  (查看商品详情) as UC_USR_04
+  (管理购物车) as UC_USR_05
+  (下单与支付) as UC_USR_06
+  (跟踪订单状态) as UC_USR_07
+  (申请售后) as UC_USR_08
+  (查看个性化推荐) as UC_USR_09
+  (管理收货地址) as UC_USR_10
+  (评价商品) as UC_USR_11
+  (查看消息通知) as UC_USR_12
+}
+
+package "商家端" {
+  (提交入驻资质) as UC_MER_01
+  (商品上架) as UC_MER_02
+  (商品编辑与下架) as UC_MER_03
+  (库存管理与不足预警) as UC_MER_04
+  (订单处理与发货) as UC_MER_05
+  (售后处理) as UC_MER_06
+  (查看销售报表) as UC_MER_07
+  (临期与损耗预警) as UC_MER_08
+  (维护分类与标签) as UC_MER_09
+  (库存盘点) as UC_MER_10
+  (维护商家信息) as UC_MER_11
+  (处理平台通知) as UC_MER_12
+}
+
+package "平台管理端" {
+  (审核商家资质) as UC_ADM_01
+  (管理用户账号) as UC_ADM_02
+  (处理投诉与平台介入) as UC_ADM_03
+  (查看数据总览) as UC_ADM_04
+  (审核商品与分类) as UC_ADM_05
+  (管理角色与权限) as UC_ADM_06
+  (配置系统参数) as UC_ADM_07
+  (查看操作日志) as UC_ADM_08
+}
+
+' 参与者与公共用例关联
+ActorUser --> UC_PUB_01
+ActorMerchant --> UC_PUB_01
+ActorAdmin --> UC_PUB_01
+
+' 用户端关联
+ActorUser --> UC_USR_01
+ActorUser --> UC_USR_02
+ActorUser --> UC_USR_03
+ActorUser --> UC_USR_04
+ActorUser --> UC_USR_05
+ActorUser --> UC_USR_06
+ActorUser --> UC_USR_07
+ActorUser --> UC_USR_08
+ActorUser --> UC_USR_09
+ActorUser --> UC_USR_10
+ActorUser --> UC_USR_11
+ActorUser --> UC_USR_12
+
+' 商家端关联
+ActorMerchant --> UC_MER_01
+ActorMerchant --> UC_MER_02
+ActorMerchant --> UC_MER_03
+ActorMerchant --> UC_MER_04
+ActorMerchant --> UC_MER_05
+ActorMerchant --> UC_MER_06
+ActorMerchant --> UC_MER_07
+ActorMerchant --> UC_MER_08
+ActorMerchant --> UC_MER_09
+ActorMerchant --> UC_MER_10
+ActorMerchant --> UC_MER_11
+ActorMerchant --> UC_MER_12
+
+' 平台管理端关联
+ActorAdmin --> UC_ADM_01
+ActorAdmin --> UC_ADM_02
+ActorAdmin --> UC_ADM_03
+ActorAdmin --> UC_ADM_04
+ActorAdmin --> UC_ADM_05
+ActorAdmin --> UC_ADM_06
+ActorAdmin --> UC_ADM_07
+ActorAdmin --> UC_ADM_08
+
+' 包含关系：下单必须校验库存并执行支付
+UC_USR_06 ..> UC_PUB_01 : <<include>>
+UC_USR_06 ..> UC_PUB_02 : <<include>>
+UC_USR_06 ..> UC_PUB_03 : <<include>>
+UC_USR_08 ..> UC_PUB_04 : <<include>>
+UC_MER_02 ..> UC_PUB_02 : <<include>>
+
+' 扩展关系：搜索基于浏览、购物车基于详情、售后申诉触发平台介入
+UC_USR_03 ..> UC_USR_02 : <<extend>>
+UC_USR_05 ..> UC_USR_04 : <<extend>>
+UC_USR_08 ..> UC_USR_07 : <<extend>>
+UC_ADM_03 ..> UC_MER_06 : <<extend>>
+UC_MER_03 ..> UC_MER_08 : <<extend>>
+
+note right of UC_USR_09
+  智能特性一：历史订单频次 + 协同过滤 + 热销兜底
+end note
+
+note right of UC_MER_08
+  智能特性二：临期阈值 + 销量趋势 + 损耗风险分级
+end note
+
+@enduml

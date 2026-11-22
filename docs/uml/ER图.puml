@@ -1,0 +1,236 @@
+@startuml
+' 图名：数据库ER图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+hide circle
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #FDFDFD
+  BorderColor #4A76A8
+}
+
+entity "sys_user\n系统用户" as user {
+  *id : bigint <<PK>>
+  --
+  *username : varchar(64) <<UK>>
+  password : varchar(255)
+  phone : varchar(20) <<UK>>
+  role : varchar(20)
+  merchant_id : bigint <<FK>>
+  status : tinyint
+  deleted : tinyint
+}
+
+entity "merchant\n商家" as merchant {
+  *id : bigint <<PK>>
+  --
+  *user_id : bigint <<UK>>
+  merchant_name : varchar(128)
+  license_no : varchar(64)
+  audit_status : tinyint
+  status : tinyint
+}
+
+entity "category\n商品分类" as category {
+  *id : bigint <<PK>>
+  --
+  name : varchar(64)
+  parent_id : bigint
+  sort : int
+  status : tinyint
+}
+
+entity "product\n商品" as product {
+  *id : bigint <<PK>>
+  --
+  *merchant_id : bigint <<FK>>
+  *category_id : bigint <<FK>>
+  name : varchar(128)
+  price : decimal(10,2)
+  unit : varchar(20)
+  shelf_life_days : int
+  production_date : date
+  status : tinyint
+  sales_count : int
+}
+
+entity "product_image\n商品图片" as product_image {
+  *id : bigint <<PK>>
+  --
+  *product_id : bigint <<FK>>
+  url : varchar(255)
+  sort : int
+  is_main : tinyint
+}
+
+entity "inventory\n库存" as inventory {
+  *id : bigint <<PK>>
+  --
+  *product_id : bigint <<UK,FK>>
+  *merchant_id : bigint <<FK>>
+  stock : int
+  locked_stock : int
+  safety_stock : int
+  warning_level : tinyint
+  version : int
+}
+
+entity "cart\n购物车" as cart {
+  *id : bigint <<PK>>
+  --
+  *user_id : bigint <<FK>>
+  *product_id : bigint <<FK>>
+  quantity : int
+  selected : tinyint
+}
+
+entity "address\n收货地址" as address {
+  *id : bigint <<PK>>
+  --
+  *user_id : bigint <<FK>>
+  receiver : varchar(64)
+  phone : varchar(20)
+  detail : varchar(255)
+  is_default : tinyint
+}
+
+entity "orders\n订单主表" as orders {
+  *id : bigint <<PK>>
+  --
+  *order_no : varchar(64) <<UK>>
+  *user_id : bigint <<FK>>
+  *merchant_id : bigint <<FK>>
+  address_id : bigint <<FK>>
+  total_amount : decimal(10,2)
+  pay_amount : decimal(10,2)
+  status : tinyint
+  pay_time : datetime
+}
+
+entity "order_item\n订单明细" as order_item {
+  *id : bigint <<PK>>
+  --
+  *order_id : bigint <<FK>>
+  product_id : bigint <<FK>>
+  product_name : varchar(128)
+  price : decimal(10,2)
+  quantity : int
+  subtotal : decimal(10,2)
+}
+
+entity "payment_record\n支付记录" as payment_record {
+  *id : bigint <<PK>>
+  --
+  *payment_no : varchar(64) <<UK>>
+  *order_id : bigint <<FK>>
+  amount : decimal(10,2)
+  pay_method : tinyint
+  status : tinyint
+}
+
+entity "logistics\n物流" as logistics {
+  *id : bigint <<PK>>
+  --
+  *order_id : bigint <<UK,FK>>
+  logistics_no : varchar(64)
+  carrier : varchar(64)
+  status : tinyint
+  traces : text
+}
+
+entity "after_sale\n售后" as after_sale {
+  *id : bigint <<PK>>
+  --
+  *after_sale_no : varchar(64) <<UK>>
+  *order_id : bigint <<FK>>
+  order_item_id : bigint <<FK>>
+  user_id : bigint <<FK>>
+  merchant_id : bigint <<FK>>
+  type : tinyint
+  amount : decimal(10,2)
+  status : tinyint
+}
+
+entity "complaint\n投诉" as complaint {
+  *id : bigint <<PK>>
+  --
+  *complaint_no : varchar(64) <<UK>>
+  *user_id : bigint <<FK>>
+  merchant_id : bigint <<FK>>
+  order_id : bigint <<FK>>
+  type : tinyint
+  status : tinyint
+}
+
+entity "audit_record\n审核记录" as audit_record {
+  *id : bigint <<PK>>
+  --
+  biz_type : varchar(32)
+  biz_id : bigint
+  auditor_id : bigint <<FK>>
+  action : varchar(32)
+  before_status : tinyint
+  after_status : tinyint
+}
+
+entity "inventory_log\n库存流水" as inventory_log {
+  *id : bigint <<PK>>
+  --
+  *product_id : bigint <<FK>>
+  *merchant_id : bigint <<FK>>
+  change_type : tinyint
+  quantity : int
+  before_stock : int
+  after_stock : int
+  ref_id : bigint
+}
+
+entity "recommendation_log\n推荐记录" as recommendation_log {
+  *id : bigint <<PK>>
+  --
+  *user_id : bigint <<FK>>
+  *product_id : bigint <<FK>>
+  score : decimal(10,4)
+  source : varchar(32)
+  scene : varchar(32)
+}
+
+' ===== 实体关系与基数 =====
+user ||--o| merchant : "1:1 拥有"
+user ||--o{ address : "1:N 收货地址"
+user ||--o{ cart : "1:N 购物车"
+user ||--o{ orders : "1:N 下单"
+user ||--o{ complaint : "1:N 发起投诉"
+user ||--o{ recommendation_log : "1:N 推荐历史"
+
+merchant ||--o{ product : "1:N 上架"
+category ||--o{ product : "1:N 归类"
+
+product ||--|| inventory : "1:1 库存"
+product ||--o{ product_image : "1:N 图片"
+product ||--o{ cart : "1:N 被选购"
+product ||--o{ order_item : "1:N 被购买"
+product ||--o{ inventory_log : "1:N 库存变动"
+product ||--o{ recommendation_log : "1:N 被推荐"
+
+orders ||--|{ order_item : "1:N 明细"
+orders ||--o| payment_record : "1:1 支付"
+orders ||--o| logistics : "1:1 配送"
+orders ||--o{ after_sale : "1:N 售后"
+orders ||--o| complaint : "1:0..1 投诉"
+
+order_item ||--o| after_sale : "1:0..1 针对"
+merchant ||--o{ after_sale : "1:N 处理"
+merchant ||--o{ complaint : "1:N 被投诉"
+
+note as note1
+  基数说明：
+  || 表示一且仅一
+  o{ 表示零或多
+  |{ 表示一或多
+  o| 表示零或一
+  外键以逻辑外键为主，应用层保证完整性
+end note
+
+@enduml

@@ -1,0 +1,80 @@
+@startuml
+' 图名：下单支付时序图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "用户" as U
+participant "用户端前端\nVue3 + Axios" as FE
+participant "网关/鉴权\nSpring Security + JWT" as GW
+participant "订单服务\nOrderService" as OS
+participant "库存服务\nInventoryService" as IS
+participant "支付模拟\nPaymentMock" as PAY
+database "MySQL 8" as DB
+
+== 阶段一：创建订单 ==
+
+U -> FE : 选择商品、填写地址、提交订单
+FE -> GW : POST /api/orders (Bearer Token + items)
+activate GW
+GW -> GW : 解析JWT，校验USER角色与登录态
+GW -> OS : createOrder(dto)
+activate OS
+OS -> DB : 查询商品状态与实时价格
+activate DB
+DB --> OS : 商品信息(status=1, price)
+deactivate DB
+OS -> OS : 服务端重算金额，生成订单号
+OS -> IS : lockStock(productId, qty)
+activate IS
+IS -> DB : 乐观锁扣减stock、增加locked_stock
+activate DB
+DB --> IS : 预占结果
+deactivate DB
+IS --> OS : 预占成功
+deactivate IS
+OS -> DB : 插入orders与order_item(status=0待支付)
+activate DB
+DB --> OS : 订单ID
+deactivate DB
+OS --> GW : 待支付订单(订单号/金额/支付超时时间)
+deactivate OS
+GW --> FE : Result(code=0, data=订单)
+deactivate GW
+FE --> U : 显示待支付订单与支付倒计时
+
+== 阶段二：支付订单 ==
+
+U -> FE : 点击支付，选择支付方式
+FE -> GW : POST /api/orders/{id}/pay
+activate GW
+GW -> OS : pay(orderId, payMethod)
+activate OS
+OS -> DB : 校验订单状态(status=0)
+DB --> OS : 状态合法
+OS -> PAY : 发起模拟支付(amount)
+activate PAY
+PAY --> OS : 支付成功(tradeNo)
+deactivate PAY
+OS -> IS : confirmDeduction(orderId)
+activate IS
+IS -> DB : 扣减locked_stock，写inventory_log
+DB --> IS : 完成
+deactivate IS
+OS -> DB : 插入payment_record，更新订单status 0→1
+DB --> OS : 完成
+OS --> GW : 支付结果
+deactivate OS
+GW --> FE : Result(code=0, data=支付记录)
+deactivate GW
+FE --> U : 显示待发货状态
+
+note over OS, DB
+  下单与库存预占在同一事务内完成
+  乐观锁version防止超卖，库存不足返回10001
+  状态非法流转返回10003
+end note
+
+@enduml

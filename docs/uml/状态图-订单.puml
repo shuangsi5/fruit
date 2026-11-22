@@ -1,0 +1,49 @@
+@startuml
+' 图名：订单状态图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam state {
+  BackgroundColor #EDF4FA
+  BorderColor #4A76A8
+  ArrowColor #4A76A8
+}
+
+[*] --> 待支付 : 创建订单
+
+待支付 --> 待发货 : 支付成功
+待支付 --> 已取消 : 用户取消 / 支付超时30分钟
+
+待发货 --> 运输中 : 商家发货
+待发货 --> 已取消 : 商家同意取消
+
+运输中 --> 已完成 : 确认收货 / 超时自动确认
+
+已完成 --> 售后中 : 申请售后(完成后7天内)
+
+售后中 --> 已完成 : 售后处理完成
+
+已取消 --> [*]
+已完成 --> [*]
+
+note right of 待支付
+  状态值 0
+  OrderTimeoutJob 每5分钟扫描超时订单并关闭
+end note
+
+note right of 待发货
+  状态值 1
+  支付成功后释放锁定库存并扣减实际库存
+end note
+
+note right of 运输中
+  状态值 2
+  发货时创建logistics记录并回填运单号
+end note
+
+note right of 售后中
+  状态值 5
+  售后审核与处理由商家/平台协同完成
+end note
+
+@enduml

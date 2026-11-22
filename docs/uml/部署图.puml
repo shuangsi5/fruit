@@ -1,0 +1,56 @@
+@startuml
+' 图名：部署图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam linetype ortho
+skinparam node {
+  BackgroundColor #F5F9FD
+  BorderColor #4A76A8
+}
+
+cloud "公网 Internet" {
+  actor "用户" as U
+  actor "商家" as M
+  actor "管理员" as A
+}
+
+node "浏览器（三端前端）" as Browser
+
+node "Web / 应用服务器" {
+  node "Nginx" as NGINX {
+    [前端静态资源\ndist/（用户端/商家端/平台端）] as STATIC
+  }
+  node "Spring Boot 应用服务" as APP {
+    [fruit-trade-backend\n:8080（可多实例）] as BACKEND
+  }
+}
+
+node "数据库服务器" {
+  database "MySQL 8\nfruit_trade_db" as DB
+}
+
+node "缓存服务器（可选）" {
+  database "Redis 6+\n缓存/会话/热销榜" as REDIS
+}
+
+U --> Browser
+M --> Browser
+A --> Browser
+Browser --> NGINX : HTTPS / HTTP 访问
+NGINX --> STATIC : 静态资源
+NGINX --> BACKEND : /api 反向代理与负载均衡
+BACKEND --> DB : JDBC 连接（业务数据）
+BACKEND --> REDIS : 缓存与会话（可降级本地缓存）
+
+note right of NGINX
+  生产环境与前端同域部署
+  从根本上规避跨域问题
+end note
+
+note right of DB
+  每日mysqldump备份
+  仅允许后端网段访问
+end note
+
+@enduml

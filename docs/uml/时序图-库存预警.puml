@@ -1,0 +1,65 @@
+@startuml
+' 图名：库存预警时序图
+' 撰写成员：架构设计智能体
+' 对应版本：v1.0
+
+skinparam sequenceMessageAlign center
+
+actor "商家" as M
+participant "商家端前端\nVue3 + ECharts" as FE
+participant "网关/鉴权\nSpring Security + JWT" as GW
+participant "预警引擎\nWarningEngine" as WE
+participant "库存服务\nInventoryService" as IS
+participant "定时任务\n@Scheduled" as JOB
+database "MySQL 8" as DB
+
+== 阶段一：定时扫描预警（每日 02:00） ==
+
+JOB -> WE : scan() 触发全量扫描
+activate WE
+WE -> IS : 查询在售商品与库存
+activate IS
+IS -> DB : SELECT product JOIN inventory WHERE status=1
+DB --> IS : 商品与库存列表
+IS --> WE : 商品数据
+deactivate IS
+WE -> DB : 查询近7日销量(order_item)
+DB --> WE : 销量数据
+loop 每个在售商品
+  WE -> WE : 计算临期等级(remainingDays)
+  WE -> WE : 计算损耗风险(lossRisk)
+  WE -> WE : 计算库存不足(stock<=safetyStock)
+  WE -> WE : level = max(三类等级)
+  WE -> DB : UPDATE inventory.warning_level
+end
+WE --> JOB : 扫描完成
+deactivate WE
+
+== 阶段二：商家实时查询预警 ==
+
+M -> FE : 打开库存与临期预警页面
+FE -> GW : GET /api/merchant/inventory/warnings
+activate GW
+GW -> IS : 查询本商家预警商品
+activate IS
+IS -> DB : 查询warning_level>=阈值的库存
+DB --> IS : 预警商品列表
+IS -> WE : evaluate() 实时重算详情
+activate WE
+WE -> DB : 读取近7日销量与保质期
+DB --> WE : 销量与商品数据
+WE --> IS : 预警结果(等级/类型/建议)
+deactivate WE
+IS --> GW : 预警VO列表(分页)
+deactivate IS
+GW --> FE : Result(code=0, data=预警分页)
+deactivate GW
+FE --> M : ECharts展示临期与损耗趋势、预警清单
+
+note over WE, DB
+  订单服务与支付模拟在本场景不参与交互
+  定时任务结果持久化到inventory.warning_level
+  实时查询保证商家看到最新预警
+end note
+
+@enduml
