@@ -107,7 +107,7 @@ async function loadData() {
   }
   try {
     const rec = await getRecommendations({ scene: 'HOME', limit: 10 })
-    recommendList.value = rec.list || []
+    recommendList.value = Array.isArray(rec) ? rec : rec.list || []
   } catch (e) {
     recommendList.value = []
   }

@@ -1,0 +1,39 @@
+@startuml
+' 图名：智能推荐数据流图（DFD-3）
+' 撰写成员：付磊杰
+' 版本：v1.0
+' 对应需求：FR-6.1~FR-6.3（SRS 第 3.6 节 个性化推荐）
+
+left to right direction
+skinparam rectangleStyle roundcorner
+
+rectangle "用户" <<entity>> as user
+rectangle "订单历史\n（DF-1 输出）" <<entity>> as hist
+
+rectangle "P3.1\n订单历史采集" <<process>> as p1
+rectangle "P3.2\n购买频次统计" <<process>> as p2
+rectangle "P3.3\n协同过滤计算" <<process>> as p3
+rectangle "P3.4\n热销度加权" <<process>> as p4
+rectangle "P3.5\n推荐结果生成" <<process>> as p5
+
+rectangle "D1 订单明细表\norder_item" <<store>> as d1
+rectangle "D2 推荐日志表\nrecommendation_log" <<store>> as d2
+rectangle "D3 推荐缓存\n(TTL 30min)" <<store>> as d3
+rectangle "D4 商品表\nproduct" <<store>> as d4
+
+rectangle "推荐结果\n(猜你喜欢 + 理由)" <<entity>> as result
+
+user --> p1 : 用户ID
+hist --> p1 : 下单产生新订单
+d1 --> p1 : 读取历史购买记录
+p1 --> p2 : 用户-商品购买序列
+p2 --> p3 : 频次向量
+p3 --> p4 : 相似度得分
+d4 --> p4 : 商品销量/状态
+p4 --> p5 : 综合得分
+p5 --> d2 : 写入推荐日志
+p5 --> d3 : 写入缓存
+p5 --> result : 推荐商品+推荐理由
+result --> user : 猜你喜欢 + 理由
+hist --> d1 : 新购买记录回流入历史
+@enduml

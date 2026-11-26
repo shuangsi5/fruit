@@ -1,0 +1,42 @@
+@startuml
+' 图名：推荐计算时序图
+' 撰写成员：付磊杰
+' 版本：v1.0
+' 对应需求：FR-6.1~FR-6.3（SRS 第 3.6 节 个性化推荐）
+
+participant "用户" as u
+participant "前端" as fe
+participant "GuessYouLike 组件" as comp
+participant "推荐控制器\nRecommendationController" as ctrl
+participant "推荐服务\nRecommendationService" as svc
+participant "推荐引擎\nHybridRecommendEngine" as eng
+participant "订单库\norders/order_item" as db
+participant "推荐日志\nrecommendation_log" as log
+participant "结果缓存\nRedis/本地缓存" as cache
+
+u -> fe : 打开首页
+fe -> comp : 渲染"猜你喜欢"
+comp -> ctrl : GET /api/recommendations
+ctrl -> svc : getRecommendations(userId, limit)
+svc -> cache : get(userId)
+
+alt 缓存命中
+  cache --> svc : 推荐结果
+else 缓存未命中
+  svc -> eng : recommend(userId)
+  eng -> db : 查询历史订单明细
+  db --> eng : order_item 列表
+  eng -> eng : 频次统计 / 协同过滤 / 热销度加权
+  alt 无历史记录（冷启动）
+    eng -> db : 查询近30天热销榜
+    db --> eng : 热销商品 TopN
+  end
+  eng --> svc : 推荐结果 + 理由
+  svc -> log : 写入推荐日志
+  svc -> cache : set(userId, 结果, 30min)
+end
+
+ctrl --> comp : List<RecommendItemVO>
+comp -> fe : 推荐商品 + 理由标签
+fe --> u : 展示"猜你喜欢"
+@enduml

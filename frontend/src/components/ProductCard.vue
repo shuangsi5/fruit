@@ -8,6 +8,7 @@
     <div class="card-info">
       <div class="card-name">{{ product.name }}</div>
       <div class="card-subtitle">{{ product.subtitle || product.origin || '新鲜水果' }}</div>
+      <div v-if="product.reason" class="card-reason">荐 · {{ product.reason }}</div>
       <div class="card-price">
         <span class="price">{{ formatMoney(product.price) }}</span>
         <span v-if="product.originalPrice" class="price-original">{{ formatMoney(product.originalPrice) }}</span>
@@ -98,6 +99,19 @@ const isExpiring = computed(() => props.product.remainingDays !== undefined && p
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.card-reason {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--primary, #2e9e5b);
+  background: var(--primary-light, #e8f5ee);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .card-price {
   display: flex;

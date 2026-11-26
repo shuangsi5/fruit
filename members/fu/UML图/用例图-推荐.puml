@@ -1,0 +1,38 @@
+@startuml
+' 图名：推荐功能用例图
+' 撰写成员：付磊杰
+' 版本：v1.0
+' 对应需求：FR-6.1~FR-6.3（SRS 第 3.6 节 个性化推荐）
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor "用户" as user
+actor "系统（推荐引擎）" as sys
+actor "平台管理员" as admin
+
+rectangle "个性化推荐（FR-6）" {
+  usecase "UC-6.1 查看猜你喜欢" as uc1
+  usecase "UC-6.2 查看推荐理由" as uc2
+  usecase "UC-6.3 冷启动热销兜底" as uc3
+  usecase "UC-6.4 计算推荐评分" as uc4
+  usecase "UC-6.5 采集历史订单" as uc5
+  usecase "UC-6.6 记录推荐日志" as uc6
+  usecase "UC-6.7 缓存推荐结果(30min)" as uc7
+  usecase "UC-6.8 配置推荐权重" as uc8
+}
+
+user --> uc1
+uc1 ..> uc4 : <<include>>
+uc1 ..> uc2 : <<include>>
+uc4 ..> uc5 : <<include>>
+uc4 ..> uc7 : <<include>>
+uc3 ..> uc4 : <<extend>>（新用户无历史记录时）
+
+sys --> uc4
+sys --> uc5
+sys --> uc6
+sys --> uc7
+
+admin --> uc8
+@enduml
